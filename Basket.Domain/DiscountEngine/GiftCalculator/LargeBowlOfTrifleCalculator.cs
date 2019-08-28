@@ -13,7 +13,8 @@ namespace CustomerBasket.Domain.DiscountEngine.GiftCalculator
             var bowlOfTrifles = basket.Products.Count(i => i.Id == _bowlOfTrifleId);
             if (bowlOfTrifles >= 1)
             {
-                return new Product(_paperMaskId, _paperMaskName, 0);
+                var product = new Product(_paperMaskId, _paperMaskName, 0);
+                return product;
             }
             return null;
         }

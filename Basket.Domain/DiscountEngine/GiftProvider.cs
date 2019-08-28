@@ -19,7 +19,7 @@ namespace CustomerBasket.Domain.DiscountEngine
 
         public IEnumerable<Product> GetGiftProducts(Basket basket)
         {
-            var gifts = _giftCalculators.Select(c => c.CalculateGift(basket));
+            var gifts = _giftCalculators.Select(c => c.CalculateGift(basket)).Where(g => g != null);
             return gifts;
         }
     }

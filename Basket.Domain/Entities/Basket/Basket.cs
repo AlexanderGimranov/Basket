@@ -30,7 +30,12 @@ namespace CustomerBasket.Domain.Entities
                 throw new ArgumentNullException("Can't be null", nameof(item.Id));
 
             _products.Add(item);
-            //UpdateGiftItems();
+
+            if (!item.IsGift)
+            {
+                UpdateGiftItems();
+            }
+            
         }
 
         public void RemoveBasketItem(Product basketItem)
@@ -38,7 +43,7 @@ namespace CustomerBasket.Domain.Entities
             if(basketItem != null)
             {
                 _products.Remove(basketItem);
-                //UpdateGiftItems();
+                UpdateGiftItems();
             }
         }
 
@@ -47,7 +52,7 @@ namespace CustomerBasket.Domain.Entities
             if (!String.IsNullOrEmpty(productId))
             {
                 _products.RemoveAll(p => p.Id == productId);
-                //UpdateGiftItems();
+                UpdateGiftItems();
             }
         }
 
@@ -58,7 +63,9 @@ namespace CustomerBasket.Domain.Entities
 
         public decimal Subtotal()
         {
-            var subtotal = _products.Sum(i => i.UnitPrice);
+            var subtotal = _products
+                .Where(i => i.IsGift == false)
+                .Sum(i => i.UnitPrice);
             return subtotal;
         }
 
@@ -75,7 +82,7 @@ namespace CustomerBasket.Domain.Entities
             var basketItems = new Dictionary<string, BasketItem>();
             foreach(var product in _products)
             {
-                var key = product.Id + product.UnitPrice;
+                var key = product.Id;
                 var basketItemExists = basketItems.TryGetValue(key, out var basketItem);
                 if (basketItemExists)
                 {
@@ -96,9 +103,14 @@ namespace CustomerBasket.Domain.Entities
             return discount;
         }
 
+        public IEnumerable<Product> GetGifts()
+        {
+            var gifts = _giftProvider.GetGiftProducts(this);
+            return gifts;
+        }
+
         public BasketDetails GetDetails()
         {
-            UpdateGiftItems();
             return new BasketDetails
             {
                 BasketItems = GetBasketItems(),
@@ -118,13 +130,14 @@ namespace CustomerBasket.Domain.Entities
             var giftItems = _giftProvider.GetGiftProducts(this);
             foreach (var gift in giftItems)
             {
+                gift.IsGift = true;
                 AddBasketItem(gift);
             }
         }
 
         private void RemoveGifts()
         {
-            _products.RemoveAll(p => p.UnitPrice == 0M);
+            _products.RemoveAll(p => p.IsGift);
         }
     }
 }

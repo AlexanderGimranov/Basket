@@ -17,8 +17,8 @@ namespace UnitTests.Entities.CustomerBasket
 
         public BasketTests()
         {
-            _discountProvider = new Mock<IDiscountProvider>(MockBehavior.Strict);
-            _giftProvider = new Mock<IGiftProvider>(MockBehavior.Strict);
+            _discountProvider = new Mock<IDiscountProvider>(MockBehavior.Loose);
+            _giftProvider = new Mock<IGiftProvider>(MockBehavior.Loose);
         }
 
         [TestMethod]
@@ -104,6 +104,29 @@ namespace UnitTests.Entities.CustomerBasket
         }
 
         [TestMethod]
+        public void ShouldCallGiftProviderAndAddGiftWhenAddItem()
+        {
+            // Arrange
+            var productId = "Some-Id";
+            var product = new Product(productId, "Test", 23);
+            var gift = CreateTestProduct("gift");
+            var gifts = new List<Product> { gift };
+            _giftProvider.Setup(p => p.GetGiftProducts(It.IsAny<Basket>())).Returns(gifts);
+
+            // Sut
+            var basket = new Basket(_discountProvider.Object, _giftProvider.Object);
+
+            // Act
+            basket.AddBasketItem(product);
+
+            // Assert
+            _giftProvider.VerifyAll();
+            var items = basket.Products;
+            var expectedProductCount = 2; // product + gift
+            Assert.AreEqual(expectedProductCount, items.Count, $"Amount of products in basket is not as expected. Expected: {expectedProductCount}, Actual: {items.Count}");
+        }
+
+        [TestMethod]
         public void ShouldRemoveOneBasketItem()
         {
             // Arrange
@@ -132,6 +155,29 @@ namespace UnitTests.Entities.CustomerBasket
 
             // Assert
             Assert.AreEqual(0, basket.Products.Count, "Should have 0 product");
+        }
+
+        [TestMethod]
+        public void ShouldRemoveOneBasketItemAndUpdateGifts()
+        {
+            // Arrange
+            var product = CreateTestProduct();
+            var productCount = 3;
+            var gift = CreateTestProduct("gift");
+            gift.IsGift = true;
+            var noGifts = new List<Product>();
+            _giftProvider.Setup(i => i.GetGiftProducts(It.IsAny<Basket>())).Returns(noGifts);
+            var basket = new Basket(_discountProvider.Object, _giftProvider.Object);
+
+            PopulateWithProducts(basket, product, productCount);
+            PopulateWithProducts(basket, gift, productCount);
+            Assert.AreEqual(productCount + productCount, basket.Products.Count, $"Should have {productCount - 1} products and gifts in total");
+
+            // Act
+            basket.RemoveBasketItem(product);
+
+            // Assert
+            Assert.AreEqual(productCount - 1, basket.Products.Count, $"Should have {productCount - 1} products and 0 gifts");
         }
 
         [TestMethod]
@@ -208,6 +254,30 @@ namespace UnitTests.Entities.CustomerBasket
         }
 
         [TestMethod]
+        public void ShouldRemoveAllWithIdAndUpdateGifts()
+        {
+            // Arrange
+            var product = CreateTestProduct();
+            var productCount = 3;
+            var giftCount = 1;
+            var gift = CreateTestProduct("gift");
+            gift.IsGift = true;
+            var noGifts = new List<Product>();
+            _giftProvider.Setup(i => i.GetGiftProducts(It.IsAny<Basket>())).Returns(noGifts);
+            var basket = new Basket(_discountProvider.Object, _giftProvider.Object);
+
+            PopulateWithProducts(basket, product, productCount);
+            PopulateWithProducts(basket, gift, giftCount);
+            Assert.AreEqual(productCount + giftCount, basket.Products.Count, $"Should have {productCount} products and {giftCount} gifts");
+
+            // Act
+            basket.RemoveAllItemsOfType(product.Id);
+
+            // Assert
+            Assert.AreEqual(0, basket.Products.Count, "Should be empty");
+        }
+
+        [TestMethod]
         public void ShouldClearBasket()
         {
             // Arrange
@@ -281,6 +351,38 @@ namespace UnitTests.Entities.CustomerBasket
             var subtotal = basket.Subtotal();
 
             // Assert
+            var expectedPrice = productPrice * productCount + otherProductPrice * productCount;
+            Assert.AreEqual(expectedPrice, subtotal, $"Subtotal should be {expectedPrice}");
+        }
+
+        [TestMethod]
+        public void ShouldCalculateSubtotalForDifferentProductsWithGifts()
+        {
+            // Arrange
+            var productPrice = 23;
+            var otherProductId = "Some-Id-2";
+            var giftId = "gift";
+            var otherProductPrice = 2;
+            var giftCount = 2;
+            var giftPrice = 200M;
+            
+            var product = CreateTestProduct(price: productPrice);
+            var otherProduct = CreateTestProduct(id: otherProductId, price: otherProductPrice);
+            var gift = CreateTestProduct(id: giftId, price: giftPrice);
+            gift.IsGift = true;
+            var productCount = 3;
+            var basket = new Basket(_discountProvider.Object, _giftProvider.Object);
+
+            PopulateWithProducts(basket, product, productCount);
+            PopulateWithProducts(basket, otherProduct, productCount);
+            PopulateWithProducts(basket, gift, giftCount);
+
+            // Act
+            var subtotal = basket.Subtotal();
+
+            // Assert
+            var expectedProductCount = productCount + productCount + giftCount;
+            Assert.AreEqual(expectedProductCount, basket.Products.Count, $"Basket should have {expectedProductCount} products including gifts");
             var expectedPrice = productPrice * productCount + otherProductPrice * productCount;
             Assert.AreEqual(expectedPrice, subtotal, $"Subtotal should be {expectedPrice}");
         }

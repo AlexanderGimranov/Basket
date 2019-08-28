@@ -14,6 +14,8 @@ namespace CustomerBasket.Domain.Entities
 
         public decimal UnitPrice { get; set; }
 
+        public bool IsGift { get; set; }
+
         public Product(string id, string name, decimal unitPrice)
         {
             Id = id;
